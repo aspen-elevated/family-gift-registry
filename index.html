@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1E3A36">
+<meta name="robots" content="noindex, nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gift Registry">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
+<title>Family Gift Registry</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231E3A36'/%3E%3Cpath d='M5 23l7-10 4 5 3-4 8 9z' fill='%23fff'/%3E%3Cpath d='M12 13l2 3-2 1-2-1z' fill='%231E3A36'/%3E%3C/svg%3E">
+<!-- Open the connections to Google's script servers while the page loads -->
+<link rel="preconnect" href="https://script.google.com" crossorigin>
+<link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="demo-bar" id="demoBar" hidden>Demo mode: sample data stored only in this browser. Every demo PIN is <b>1234</b>. <button type="button" id="demoReset">Reset demo</button></div>
+
+<!-- Sign in -->
+<section class="signin" id="signin" hidden>
+  <div class="signin-card">
+    <div class="brand-mark" aria-hidden="true"></div>
+    <p class="eyebrow" id="signinFamily">Family</p>
+    <h1>Gift Registry</h1>
+    <p class="signin-sub">Gear for the next adventure.</p>
+    <form id="signinForm" autocomplete="off">
+      <label class="fld" id="nameField">
+        <span>Who's visiting?</span>
+        <select id="signinName" required><option value="">Choose your name…</option></select>
+      </label>
+      <div class="linked-name" id="linkedName" hidden>
+        <span>Welcome,</span> <b id="linkedNameText"></b>
+        <button type="button" class="linklike" id="notMe">Not you?</button>
+      </div>
+      <label class="fld">
+        <span>Your PIN</span>
+        <input id="signinPin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" required placeholder="4–6 digits">
+      </label>
+      <p class="form-err" id="signinErr" role="alert"></p>
+      <button class="btn btn-primary btn-block" type="submit" id="signinBtn">Sign in</button>
+    </form>
+    <p class="signin-help" id="signinHelp">Don't have a PIN? Ask the family member who sent you the link.</p>
+  </div>
+</section>
+
+<!-- Welcome (shared site, no registry chosen yet) -->
+<section class="signin" id="connect" hidden>
+  <div class="signin-card">
+    <div class="brand-mark" aria-hidden="true"></div>
+    <p class="eyebrow">Family</p>
+    <h1>Gift Registry</h1>
+    <p class="signin-sub">A private gift list for your family: givers pledge, parents buy, nobody competes.</p>
+    <form id="connectForm" autocomplete="off">
+      <label class="fld"><span>Your family's registry link</span>
+        <input type="url" id="connectLink" required placeholder="Paste the link from your email"></label>
+      <p class="form-err" id="connectErr" role="alert"></p>
+      <button class="btn btn-primary btn-block" type="submit">Open the registry</button>
+    </form>
+    <button type="button" class="btn btn-ghost btn-block" id="connectDemo" style="margin-top:10px">Look around the demo</button>
+    <p class="signin-help">Want one for your own family? <a href="https://github.com/aspen-elevated/family-gift-registry#readme" target="_blank" rel="noopener">Here's how to set it up</a> (about 20 minutes, free).</p>
+  </div>
+</section>
+
+<!-- App -->
+<div class="app" id="app" hidden>
+  <header class="hdr">
+    <a class="hdr-brand" href="#/registry">
+      <span class="eyebrow" id="familyName">Family</span>
+      <span class="hdr-title">Gift Registry</span>
+    </a>
+    <div class="hdr-r">
+      <span class="sync" id="sync" aria-live="polite"></span>
+      <button class="uchip" id="userChip" type="button" aria-haspopup="true" aria-expanded="false"></button>
+    </div>
+    <div class="umenu" id="userMenu" hidden></div>
+  </header>
+  <nav class="nav" id="nav"></nav>
+  <main class="main" id="main"></main>
+  <nav class="tabbar" id="tabbar" aria-label="Main"></nav>
+</div>
+
+<div class="modal-wrap" id="modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <button class="modal-x" type="button" id="modalClose" aria-label="Close">×</button>
+    <div id="modalBody"></div>
+  </div>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script src="config.js"></script>
+<script src="apps-script/Core.js"></script>
+<script src="mock-api.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
