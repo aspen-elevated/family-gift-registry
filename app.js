@@ -79,16 +79,43 @@
 
   /* ==================================================================== api */
   var pending = 0;
+  /*
+   * Talking to the registry's Google script.
+   * Google sometimes redirects a request (often when the browser is signed in to a Google account), which turns a
+   * POST into a plain page view: the script then answers with its "hello" page instead of a result. So:
+   *  - small requests go as GET with the request in the address (?q=…), which survives a redirect intact;
+   *  - a "hello" answer means the request didn't run: reads are retried; changes are reported, never silently repeated.
+   */
+  var READS = ['bootstrap', 'adminData', 'signinInfo', 'people', 'linkInfo', 'myPledges', 'priceRun', 'thankYous', 'checkPrices', 'login'];
+  function isHello(res) { return !!res && res.ok === true && !('data' in res) && 'app' in res; }
+  function getJson(url, opts) {
+    return Promise.race([
+      fetch(url, opts).then(function (r) { return r.json(); }),
+      new Promise(function (_, reject) { setTimeout(function () { reject(new Error('timeout')); }, 45000); })
+    ]);
+  }
+  function send(req) {
+    var body = JSON.stringify(req), q = encodeURIComponent(body);
+    var post = function () { return getJson(API, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body }); };
+    if (req.action === 'uploadPhoto' || q.length > 4000) return post();
+    return getJson(API + (API.indexOf('?') >= 0 ? '&' : '?') + 'q=' + q, { method: 'GET', redirect: 'follow', cache: 'no-store' })
+      .then(function (res) { return isHello(res) ? post() : res; }); // older script versions ignore ?q, so ask again the old way
+  }
   function api(action, body) {
     var req = Object.assign({ action: action, token: S.token }, body || {});
     pending++; setSync();
-    var p = DEMO ? window.GRMockApi.call(req) : Promise.race([
-      fetch(API, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(req) })
-        .then(function (r) { return r.json(); }),
-      new Promise(function (_, reject) { setTimeout(function () { reject(new Error('timeout')); }, 45000); })
-    ]);
+    var p = DEMO ? window.GRMockApi.call(req) : send(req).then(function (res) {
+      if (isHello(res) && READS.indexOf(action) >= 0) return send(req);
+      return res;
+    });
     return p.then(function (res) {
       pending--; setSync();
+      if (isHello(res)) {
+        var lost = new Error('The registry didn\'t confirm that change (a Google hiccup). The page has been refreshed: check whether it went through before trying again.');
+        lost.unconfirmed = true;
+        setTimeout(function () { if (S.user) { toast(lost.message, 'err'); refreshAll(); } }, 50);
+        throw lost;
+      }
       if (!res.ok) { var e = new Error(res.error || 'Something went wrong.'); e.auth = res.auth; throw e; }
       return res.data;
     }, function (err) {
@@ -100,6 +127,11 @@
       if (e.auth && action !== 'login') { S.token = null; lsSet(LS_TOKEN, null); clearSnap(); showSignIn(e.message); }
       throw e;
     });
+  }
+  /** Reload everything after an unconfirmed change, so what's on screen matches the Sheet. */
+  function refreshAll() {
+    return Promise.all([api('bootstrap').then(applyBoot), isAdmin() ? loadAdmin() : null])
+      .then(function () { saveSnap(); closeModal(); rerender(); }).catch(function () { /* the error already shows */ });
   }
   /* Fast paths: one round trip per change, and last-known data shown instantly. */
   function snapshot() { return { user: S.user, items: S.items, settings: S.settings, lists: S.lists, myPledges: S.myPledges }; }
@@ -114,7 +146,7 @@
   /** A change that comes back with fresh page data. Falls back to separate reloads on an older backend. */
   function act(action, body) {
     return api(action, Object.assign({ withData: true }, body || {})).then(function (d) {
-      if (d && typeof d === 'object' && 'result' in d && 'boot' in d) { applyAll(d); return d.result; }
+      if (d && typeof d === 'object' && 'result' in d && 'boot' in d && d.boot) { applyAll(d); return d.result; }
       return Promise.all([api('bootstrap').then(applyBoot), isAdmin() ? loadAdmin() : null]).then(function () { saveSnap(); return d; });
     });
   }
@@ -223,6 +255,7 @@
     });
   }
   function applyBoot(d) {
+    if (!d || !d.user) return;
     S.user = d.user; S.items = d.items; S.settings = d.settings; S.lists = d.lists; S.myPledges = d.myPledges;
   }
   function refresh(quiet) {

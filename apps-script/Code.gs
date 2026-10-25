@@ -18,7 +18,14 @@ var SHARED_SITE = 'https://aspen-elevated.github.io/family-gift-registry/';
  * Web app
  * ========================================================================= */
 
-function doGet() {
+function doGet(e) {
+  // The website sends most requests this way (?q=…): they survive Google's redirects, which can turn a POST into a GET.
+  var q = e && e.parameter && e.parameter.q;
+  if (q) {
+    var req;
+    try { req = JSON.parse(q); } catch (err) { return json_({ ok: false, error: 'Bad request.' }); }
+    return json_(api_().handle(req));
+  }
   return json_({ ok: true, app: 'Family Gift Registry', time: new Date().toISOString() });
 }
 
